@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 if ($hassiteconfig) {
     $healthurl = new moodle_url('/admin/tool/log/store/splunk/index.php', array('sesskey' => sesskey()));
     $ADMIN->add('reports', new admin_externalpage(
-        'logstoresplunkhealth',
+        'logstorentsplunkhealth',
         new lang_string('reporttitle', 'logstore_splunk'),
         $healthurl,
         'moodle/site:config'
@@ -73,6 +73,13 @@ if ($hassiteconfig) {
         'logstore_splunk/source',
         new lang_string('source', 'logstore_splunk'),
         '', 'Moodle', PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtextarea(
+        'logstore_splunk/eventfilters',
+        new lang_string('eventfilters', 'logstore_splunk'),
+        new lang_string('eventfilters_desc', 'logstore_splunk'),
+        '', PARAM_RAW
     ));
 
     $settings->add(new admin_setting_configselect(

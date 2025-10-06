@@ -24,6 +24,7 @@ defined('MOODLE_INTERNAL') || die();
 class splunk
 {
     private static $instance;
+    private static $cachedfilters;
 
     private $service;
     private $config;
@@ -105,9 +106,14 @@ class splunk
      */
     public static function is_enabled() {
         $enabled = get_config('tool_log', 'enabled_stores');
-        $enabled = array_flip(explode(',', $enabled));
+        if (empty($enabled)) {
+            return false;
+        }
 
-        return isset($enabled['logstore_splunk']) && $enabled['logstore_splunk'];
+        $enabledstores = array_filter(array_map('trim', explode(',', (string)$enabled)));
+        $enabledstores = array_flip($enabledstores);
+
+        return !empty($enabledstores['logstore_splunk']);
     }
 
     /**
@@ -130,8 +136,13 @@ class splunk
     public static function log_standardentry($data) {
         $data = (array)$data;
 
+        $eventname = isset($data['eventname']) ? $data['eventname'] : null;
+        if (!static::should_export_event($eventname)) {
+            return;
+        }
+
         $newrow = new \stdClass();
-        $newrow->timestamp = date(\DateTime::ISO8601, $data['timecreated']);
+        $newrow->timestamp = date(DATE_ATOM, (int)$data['timecreated']);
         foreach ($data as $k => $v) {
             if ($k == 'other') {
                 $tmp = unserialize($v);
@@ -166,5 +177,44 @@ class splunk
         ));
 
         $this->buffer = array();
+    }
+
+    /**
+     * Check whether an event should be exported based on the configured filters.
+     *
+     * @param string|null $eventname Fully-qualified event class name.
+     * @return bool
+     */
+    public static function should_export_event($eventname) {
+        if (self::$cachedfilters === null) {
+            $config = get_config('logstore_splunk');
+            $filters = array();
+            if (!empty($config->eventfilters)) {
+                $values = preg_split('/[\r\n]+/', (string)$config->eventfilters);
+                if ($values) {
+                    foreach ($values as $value) {
+                        $value = trim($value);
+                        if ($value === '') {
+                            continue;
+                        }
+                        $filters[] = ltrim($value, '\\');
+                    }
+                }
+            }
+
+            self::$cachedfilters = $filters;
+        }
+
+        if (empty(self::$cachedfilters)) {
+            return true;
+        }
+
+        if (empty($eventname)) {
+            return false;
+        }
+
+        $eventname = ltrim($eventname, '\\');
+
+        return in_array($eventname, self::$cachedfilters, true);
     }
 }

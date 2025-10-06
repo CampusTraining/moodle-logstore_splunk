@@ -52,6 +52,10 @@ class store implements \tool_log\log\writer {
             }
         }
 
+        if (!\logstore_splunk\splunk::should_export_event($event->eventname)) {
+            return true;
+        }
+
         return false;
     }
 

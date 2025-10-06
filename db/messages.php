@@ -15,17 +15,20 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Splunk log store.
+ * Message providers definitions.
  *
  * @package    logstore_splunk
- * @copyright  2016 Skylar Kelty <S.Kelty@kent.ac.uk>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2025100600; // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires = 2015050500; // Requires this Moodle version.
-$plugin->component = 'logstore_splunk'; // Full name of the plugin (used for diagnostics).
-$plugin->maturity = MATURITY_STABLE;
-$plugin->release = 'v2.0.0 (Build: 2025100600)';
+$messageproviders = [
+    'splunkfailure' => [
+        'capability' => 'moodle/site:config',
+        'defaults' => [
+            'popup' => MESSAGE_PERMITTED,
+            'email' => MESSAGE_PERMITTED,
+        ],
+    ],
+];
