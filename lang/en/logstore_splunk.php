@@ -33,6 +33,8 @@ $string['realtime'] = 'Realtime';
 $string['background'] = 'Background';
 $string['hostname'] = 'Hostname of sender';
 $string['source'] = 'Source name';
+$string['eventfilters'] = 'Event filters';
+$string['eventfilters_desc'] = 'Optional newline-separated list of event class names (for example \\core\\event\\user_loggedin). Only matching events are exported to Splunk. Leave empty to export all events.';
 
 $string['taskexport'] = 'Export to Splunk';
 
@@ -41,3 +43,13 @@ $string['repstatus'] = 'Replication Status';
 $string['never'] = 'Never';
 $string['lastran'] = 'Last ran';
 $string['progress'] = 'Progress';
+$string['lastfailure'] = 'Last failure';
+$string['lastfailuremessage'] = 'Failure message';
+$string['lastfailuretime'] = 'Failure time';
+$string['messageprovider:splunkfailure'] = 'Splunk log store failures';
+$string['notificationsubject'] = 'Splunk log store export failed';
+$string['notificationbody'] = 'The Splunk log store background export failed: {$a->reason}';
+$string['notification_splunknotready'] = 'Splunk service is not ready. Check the connection settings.';
+$string['notification_lockfailed'] = 'Splunk export skipped because the task lock could not be obtained.';
+$string['notification_exporterror'] = 'Unexpected error while exporting to Splunk: {$a->message}';
+$string['privacy:metadata'] = 'The Splunk log store plugin does not store personal data within Moodle.';
