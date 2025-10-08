@@ -346,7 +346,12 @@ class splunk
         $scheme = !empty($this->config->hecuseshttps) ? 'https://' : 'http://';
         $url = $scheme . $this->config->servername . ':' . $this->config->hecport . $endpoint;
 
-        $response = $curl->post($url, implode("\n", $records));
+        $payload = implode("\n", $records);
+        if (debugging()) {
+            mtrace('logstore_splunk: sending ' . count($records) . ' events to HEC endpoint ' . $url);
+        }
+
+        $response = $curl->post($url, $payload);
         $info = $curl->get_info();
         $httpcode = isset($info['http_code']) ? (int)$info['http_code'] : 0;
 
@@ -364,6 +369,11 @@ class splunk
                 'code' => $decodedresponse->code,
                 'message' => $message
             ));
+        }
+
+        if (debugging()) {
+            $logmessage = is_string($response) && $response !== '' ? $response : 'OK';
+            mtrace('logstore_splunk: HEC response ' . $httpcode . ' - ' . $logmessage);
         }
 
         $this->buffer = array();
