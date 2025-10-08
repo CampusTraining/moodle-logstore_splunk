@@ -89,4 +89,46 @@ if ($hassiteconfig) {
             'realtime' => new lang_string('realtime', 'logstore_splunk'),
             'background' => new lang_string('background', 'logstore_splunk')
         )));
+
+    $settings->add(new admin_setting_configselect(
+        'logstore_splunk/transport',
+        new lang_string('transport', 'logstore_splunk'),
+        new lang_string('transport_desc', 'logstore_splunk'),
+        'receiver',
+        array(
+            'receiver' => new lang_string('transport_receiver', 'logstore_splunk'),
+            'hec' => new lang_string('transport_hec', 'logstore_splunk')
+        )
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'logstore_splunk/hecport',
+        new lang_string('hecport', 'logstore_splunk'),
+        new lang_string('hecport_desc', 'logstore_splunk'),
+        '8088',
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'logstore_splunk/hecuseshttps',
+        new lang_string('hecuseshttps', 'logstore_splunk'),
+        new lang_string('hecuseshttps_desc', 'logstore_splunk'),
+        1
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'logstore_splunk/hecendpoint',
+        new lang_string('hecendpoint', 'logstore_splunk'),
+        new lang_string('hecendpoint_desc', 'logstore_splunk'),
+        '/services/collector/event',
+        PARAM_RAW_TRIMMED
+    ));
+
+    $settings->add(new admin_setting_configpasswordunmask(
+        'logstore_splunk/hectoken',
+        new lang_string('hectoken', 'logstore_splunk'),
+        new lang_string('hectoken_desc', 'logstore_splunk'),
+        '',
+        PARAM_RAW
+    ));
 }

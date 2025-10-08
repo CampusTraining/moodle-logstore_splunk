@@ -23,6 +23,9 @@ defined('MOODLE_INTERNAL') || die();
  */
 class splunk
 {
+    const TRANSPORT_RECEIVER = 'receiver';
+    const TRANSPORT_HEC = 'hec';
+
     private static $instance;
     private static $cachedfilters;
 
@@ -30,6 +33,7 @@ class splunk
     private $config;
     private $buffer = array();
     private $ready;
+    private $transport = self::TRANSPORT_RECEIVER;
 
     /**
      * Constructor.
@@ -47,24 +51,18 @@ class splunk
      * Setup the connection.
      */
     private function setup() {
-        require_once(dirname(__FILE__) . '/../lib/splunk/Splunk.php');
-
         $this->config = get_config('logstore_splunk');
-        if (!isset($this->config->servername)) {
+        if (!isset($this->config->servername) || $this->config->servername === '') {
             return false;
         }
 
-        $this->service = new \Splunk_Service(array(
-            'host' => $this->config->servername,
-            'port' => $this->config->port,
-            'username' => $this->config->username,
-            'password' => $this->config->password
-        ));
+        $this->transport = $this->detect_transport();
 
-        // Login to Splunk.
-        $this->service->login();
+        if ($this->transport === self::TRANSPORT_HEC) {
+            return $this->setup_hec();
+        }
 
-        return true;
+        return $this->setup_receiver();
     }
 
     /**
@@ -167,16 +165,12 @@ class splunk
             return;
         }
 
-        // Send to Splunk.
-        $reciever = $this->service->getReceiver();
-        $reciever->submit(implode("\n", $this->buffer), array(
-            'host' => $this->config->hostname,
-            'index' => $this->config->indexname,
-            'source' => $this->config->source,
-            'sourcetype' => 'json'
-        ));
+        if ($this->transport === self::TRANSPORT_HEC) {
+            $this->flush_hec();
+            return;
+        }
 
-        $this->buffer = array();
+        $this->flush_receiver();
     }
 
     /**
@@ -216,5 +210,162 @@ class splunk
         $eventname = ltrim($eventname, '\\');
 
         return in_array($eventname, self::$cachedfilters, true);
+    }
+
+    /**
+     * Determine configured transport.
+     *
+     * @return string
+     */
+    private function detect_transport() {
+        if (!isset($this->config->transport) || $this->config->transport === '') {
+            return self::TRANSPORT_RECEIVER;
+        }
+
+        $transport = $this->config->transport;
+        if ($transport !== self::TRANSPORT_HEC) {
+            return self::TRANSPORT_RECEIVER;
+        }
+
+        return $transport;
+    }
+
+    /**
+     * Setup the classic receiver transport.
+     *
+     * @return bool
+     */
+    private function setup_receiver() {
+        require_once(dirname(__FILE__) . '/../lib/splunk/Splunk.php');
+
+        $this->service = new \Splunk_Service(array(
+            'host' => $this->config->servername,
+            'port' => $this->config->port,
+            'username' => $this->config->username,
+            'password' => $this->config->password
+        ));
+
+        // Login to Splunk.
+        $this->service->login();
+
+        return true;
+    }
+
+    /**
+     * Setup the HTTP Event Collector transport.
+     *
+     * @return bool
+     */
+    private function setup_hec() {
+        if (empty($this->config->hectoken)) {
+            return false;
+        }
+
+        if (empty($this->config->hecport)) {
+            $this->config->hecport = 8088;
+        }
+
+        if (!isset($this->config->hecuseshttps)) {
+            $this->config->hecuseshttps = 1;
+        }
+
+        if (empty($this->config->hecendpoint)) {
+            $this->config->hecendpoint = '/services/collector/event';
+        }
+
+        return true;
+    }
+
+    /**
+     * Flush buffer via the Splunk receiver API.
+     */
+    private function flush_receiver() {
+        $reciever = $this->service->getReceiver();
+        $reciever->submit(implode("\n", $this->buffer), array(
+            'host' => $this->config->hostname,
+            'index' => $this->config->indexname,
+            'source' => $this->config->source,
+            'sourcetype' => 'json'
+        ));
+
+        $this->buffer = array();
+    }
+
+    /**
+     * Flush buffer via the HTTP Event Collector.
+     *
+     * @throws \moodle_exception If Splunk reports an error.
+     */
+    private function flush_hec() {
+        global $CFG;
+
+        require_once($CFG->libdir . '/filelib.php');
+
+        $curl = new \curl();
+        $curl->setHeader(array(
+            'Authorization: Splunk ' . trim($this->config->hectoken),
+            'Content-Type: application/json'
+        ));
+
+        $records = array();
+        foreach ($this->buffer as $entry) {
+            $decoded = json_decode($entry, true);
+            $payload = array(
+                'sourcetype' => 'json',
+                'source' => $this->config->source,
+                'host' => $this->config->hostname,
+                'index' => $this->config->indexname
+            );
+
+            if (is_array($decoded)) {
+                $payload['event'] = $decoded;
+
+                if (isset($decoded['timecreated'])) {
+                    $payload['time'] = (int)$decoded['timecreated'];
+                } else if (isset($decoded['timestamp'])) {
+                    $time = strtotime($decoded['timestamp']);
+                    if ($time) {
+                        $payload['time'] = $time;
+                    }
+                }
+            } else {
+                $payload['event'] = $entry;
+            }
+
+            $records[] = json_encode($payload);
+        }
+
+        $endpoint = trim((string)$this->config->hecendpoint);
+        if ($endpoint === '') {
+            $endpoint = '/services/collector/event';
+        }
+        if ($endpoint[0] !== '/') {
+            $endpoint = '/' . $endpoint;
+        }
+
+        $scheme = !empty($this->config->hecuseshttps) ? 'https://' : 'http://';
+        $url = $scheme . $this->config->servername . ':' . $this->config->hecport . $endpoint;
+
+        $response = $curl->post($url, implode("\n", $records));
+        $info = $curl->get_info();
+        $httpcode = isset($info['http_code']) ? (int)$info['http_code'] : 0;
+
+        if ($httpcode < 200 || $httpcode >= 300) {
+            throw new \moodle_exception('splunkhecerror', 'logstore_splunk', '', (object)array(
+                'code' => $httpcode,
+                'message' => $response
+            ));
+        }
+
+        $decodedresponse = json_decode($response);
+        if ($decodedresponse !== null && isset($decodedresponse->code) && (int)$decodedresponse->code !== 0) {
+            $message = isset($decodedresponse->text) ? $decodedresponse->text : $response;
+            throw new \moodle_exception('splunkhecerror', 'logstore_splunk', '', (object)array(
+                'code' => $decodedresponse->code,
+                'message' => $message
+            ));
+        }
+
+        $this->buffer = array();
     }
 }
