@@ -1,6 +1,6 @@
 # Splunk log store
 
-A Moodle logstore plugin that forwards platform events to Splunk in real time or via a buffered cron export. Version `v2.3.0 (Build: 2025100603)` enforces HTTP Event Collector delivery alongside event filtering and administrator notifications for delivery issues.
+A Moodle logstore plugin that forwards platform events to Splunk in real time or via a buffered cron export. Version `v2.0.0 (Build: 2025100603)` enforces HTTP Event Collector delivery alongside event filtering and administrator notifications for delivery issues.
 
 ## Features
 - Real-time dispatch of Moodle events when the logstore is enabled.
