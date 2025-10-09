@@ -26,10 +26,10 @@ class splunk
     private static $instance;
     private static $cachedfilters;
 
-    private $service;
     private $config;
     private $buffer = array();
     private $ready;
+    private $hecendpointurl;
 
     /**
      * Constructor.
@@ -47,22 +47,33 @@ class splunk
      * Setup the connection.
      */
     private function setup() {
-        require_once(dirname(__FILE__) . '/../lib/splunk/Splunk.php');
-
         $this->config = get_config('logstore_splunk');
-        if (!isset($this->config->servername)) {
+        if (empty($this->config->servername) || empty($this->config->hectoken)) {
             return false;
         }
 
-        $this->service = new \Splunk_Service(array(
-            'host' => $this->config->servername,
-            'port' => $this->config->port,
-            'username' => $this->config->username,
-            'password' => $this->config->password
-        ));
+        if (empty($this->config->hecport)) {
+            $this->config->hecport = 8088;
+        }
 
-        // Login to Splunk.
-        $this->service->login();
+        if (!isset($this->config->hecuseshttps)) {
+            $this->config->hecuseshttps = 1;
+        }
+
+        if (empty($this->config->hecendpoint)) {
+            $this->config->hecendpoint = '/services/collector/event';
+        }
+
+        $endpoint = trim((string)$this->config->hecendpoint);
+        if ($endpoint === '') {
+            $endpoint = '/services/collector/event';
+        }
+        if ($endpoint[0] !== '/') {
+            $endpoint = '/' . $endpoint;
+        }
+
+        $scheme = !empty($this->config->hecuseshttps) ? 'https://' : 'http://';
+        $this->hecendpointurl = $scheme . $this->config->servername . ':' . $this->config->hecport . $endpoint;
 
         return true;
     }
@@ -167,16 +178,7 @@ class splunk
             return;
         }
 
-        // Send to Splunk.
-        $reciever = $this->service->getReceiver();
-        $reciever->submit(implode("\n", $this->buffer), array(
-            'host' => $this->config->hostname,
-            'index' => $this->config->indexname,
-            'source' => $this->config->source,
-            'sourcetype' => 'json'
-        ));
-
-        $this->buffer = array();
+        $this->flush_hec();
     }
 
     /**
@@ -216,5 +218,84 @@ class splunk
         $eventname = ltrim($eventname, '\\');
 
         return in_array($eventname, self::$cachedfilters, true);
+    }
+
+    /**
+     * Flush buffer via the HTTP Event Collector.
+     *
+     * @throws \moodle_exception If Splunk reports an error.
+     */
+    private function flush_hec() {
+        global $CFG;
+
+        require_once($CFG->libdir . '/filelib.php');
+
+        $curl = new \curl();
+        $curl->setHeader(array(
+            'Authorization: Splunk ' . trim($this->config->hectoken),
+            'Content-Type: application/json'
+        ));
+
+        $records = array();
+        foreach ($this->buffer as $entry) {
+            $decoded = json_decode($entry, true);
+            $payload = array(
+                'sourcetype' => 'json',
+                'source' => $this->config->source,
+                'host' => $this->config->hostname,
+                'index' => $this->config->indexname
+            );
+
+            if (is_array($decoded)) {
+                $payload['event'] = $decoded;
+
+                if (isset($decoded['timecreated'])) {
+                    $payload['time'] = (int)$decoded['timecreated'];
+                } else if (isset($decoded['timestamp'])) {
+                    $time = strtotime($decoded['timestamp']);
+                    if ($time) {
+                        $payload['time'] = $time;
+                    }
+                }
+            } else {
+                $payload['event'] = $entry;
+            }
+
+            $records[] = json_encode($payload);
+        }
+
+        $url = $this->hecendpointurl;
+
+        $payload = implode("\n", $records);
+        if (debugging()) {
+            mtrace('logstore_splunk: sending ' . count($records) . ' events to HEC endpoint ' . $url);
+        }
+
+        $response = $curl->post($url, $payload);
+        $info = $curl->get_info();
+        $httpcode = isset($info['http_code']) ? (int)$info['http_code'] : 0;
+
+        if ($httpcode < 200 || $httpcode >= 300) {
+            throw new \moodle_exception('splunkhecerror', 'logstore_splunk', '', (object)array(
+                'code' => $httpcode,
+                'message' => $response
+            ));
+        }
+
+        $decodedresponse = json_decode($response);
+        if ($decodedresponse !== null && isset($decodedresponse->code) && (int)$decodedresponse->code !== 0) {
+            $message = isset($decodedresponse->text) ? $decodedresponse->text : $response;
+            throw new \moodle_exception('splunkhecerror', 'logstore_splunk', '', (object)array(
+                'code' => $decodedresponse->code,
+                'message' => $message
+            ));
+        }
+
+        if (debugging()) {
+            $logmessage = is_string($response) && $response !== '' ? $response : 'OK';
+            mtrace('logstore_splunk: HEC response ' . $httpcode . ' - ' . $logmessage);
+        }
+
+        $this->buffer = array();
     }
 }

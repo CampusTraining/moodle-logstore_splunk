@@ -45,15 +45,25 @@ class store implements \tool_log\log\writer {
      * @return bool
      */
     protected function is_event_ignored(\core\event\base $event) {
+        $eventname = isset($event->eventname) ? $event->eventname : null;
+
+        if (!\logstore_splunk\splunk::should_export_event($eventname)) {
+            return true;
+        }
+
         if ((!CLI_SCRIPT || PHPUNIT_TEST)) {
             // Always log inside CLI scripts because we do not login there.
             if (!isloggedin() || isguestuser()) {
-                return true;
+                $allowwithoutlogin = array(
+                    '\core\event\user_login_failed',
+                    '\core\event\user_loggedin',
+                    '\core\event\user_loggedout'
+                );
+                $normalized = '\\' . ltrim((string)$eventname, '\\');
+                if (!in_array($normalized, $allowwithoutlogin, true)) {
+                    return true;
+                }
             }
-        }
-
-        if (!\logstore_splunk\splunk::should_export_event($event->eventname)) {
-            return true;
         }
 
         return false;

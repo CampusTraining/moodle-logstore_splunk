@@ -25,8 +25,7 @@
 $string['pluginname'] = 'Splunk log';
 $string['pluginname_desc'] = 'A log plugin storing log entries in Splunk.';
 
-$string['servername'] = 'Splunk server name';
-$string['port'] = 'Splunk server port';
+$string['servername'] = 'Splunk HEC host';
 $string['indexname'] = 'Index name';
 $string['mode'] = 'Export mode';
 $string['realtime'] = 'Realtime';
@@ -35,6 +34,14 @@ $string['hostname'] = 'Hostname of sender';
 $string['source'] = 'Source name';
 $string['eventfilters'] = 'Event filters';
 $string['eventfilters_desc'] = 'Optional newline-separated list of event class names (for example \\core\\event\\user_loggedin). Only matching events are exported to Splunk. Leave empty to export all events.';
+$string['hecport'] = 'HEC port';
+$string['hecport_desc'] = 'Port for the Splunk HTTP Event Collector endpoint.';
+$string['hecuseshttps'] = 'Use HTTPS for HEC';
+$string['hecuseshttps_desc'] = 'Enable if the HTTP Event Collector is exposed over HTTPS.';
+$string['hecendpoint'] = 'HEC endpoint path';
+$string['hecendpoint_desc'] = 'Relative path to the HTTP Event Collector endpoint (for example /services/collector/event).';
+$string['hectoken'] = 'HEC token';
+$string['hectoken_desc'] = 'Authentication token generated for the HTTP Event Collector input.';
 
 $string['taskexport'] = 'Export to Splunk';
 
@@ -52,4 +59,5 @@ $string['notificationbody'] = 'The Splunk log store background export failed: {$
 $string['notification_splunknotready'] = 'Splunk service is not ready. Check the connection settings.';
 $string['notification_lockfailed'] = 'Splunk export skipped because the task lock could not be obtained.';
 $string['notification_exporterror'] = 'Unexpected error while exporting to Splunk: {$a->message}';
+$string['splunkhecerror'] = 'Splunk HEC request failed (code {$a->code}): {$a->message}';
 $string['privacy:metadata'] = 'The Splunk log store plugin does not store personal data within Moodle.';
