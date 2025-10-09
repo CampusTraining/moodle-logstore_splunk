@@ -1,6 +1,6 @@
 # Splunk log store
 
-A Moodle logstore plugin that forwards platform events to Splunk in real time or via a buffered cron export. Version `v2.2.0 (Build: 2025100602)` enforces HTTP Event Collector delivery alongside event filtering and administrator notifications for delivery issues.
+A Moodle logstore plugin that forwards platform events to Splunk in real time or via a buffered cron export. Version `v2.3.0 (Build: 2025100603)` enforces HTTP Event Collector delivery alongside event filtering and administrator notifications for delivery issues.
 
 ## Features
 - Real-time dispatch of Moodle events when the logstore is enabled.
@@ -23,7 +23,7 @@ Key settings live in `Site administration ▸ Plugins ▸ Logging ▸ Splunk log
 - **Event filters**: Provide newline-separated event class names (e.g. `\core\event\user_loggedin`) to restrict exports; leave empty to send all events.
 - **Failure notifications**: Configure message preferences for `Splunk log store failures` so admins receive alerts.
 
-The Splunk PHP SDK is vendored in `lib/splunk/` as declared in `thirdpartylibs.xml`; avoid modifying these files directly.
+The plugin uses Moodle's built-in `curl` helper to talk to Splunk's HTTP Event Collector; no additional SDKs are required.
 
 ## Development & Testing
 - `moodle-plugin-ci install --moodle /path/to/moodle` — bootstrap a disposable Moodle site for plugin testing.
