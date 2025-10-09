@@ -25,8 +25,7 @@
 $string['pluginname'] = 'Splunk log';
 $string['pluginname_desc'] = 'A log plugin storing log entries in Splunk.';
 
-$string['servername'] = 'Splunk server name';
-$string['port'] = 'Splunk server port';
+$string['servername'] = 'Splunk HEC host';
 $string['indexname'] = 'Index name';
 $string['mode'] = 'Export mode';
 $string['realtime'] = 'Realtime';
@@ -35,10 +34,6 @@ $string['hostname'] = 'Hostname of sender';
 $string['source'] = 'Source name';
 $string['eventfilters'] = 'Event filters';
 $string['eventfilters_desc'] = 'Optional newline-separated list of event class names (for example \\core\\event\\user_loggedin). Only matching events are exported to Splunk. Leave empty to export all events.';
-$string['transport'] = 'Transport';
-$string['transport_desc'] = 'Choose which Splunk API to use when sending events.';
-$string['transport_receiver'] = 'Management port receiver';
-$string['transport_hec'] = 'HTTP Event Collector (HEC)';
 $string['hecport'] = 'HEC port';
 $string['hecport_desc'] = 'Port for the Splunk HTTP Event Collector endpoint.';
 $string['hecuseshttps'] = 'Use HTTPS for HEC';

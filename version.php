@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2025100601; // The current plugin version (Date: YYYYMMDDXX).
+$plugin->version = 2025100602; // The current plugin version (Date: YYYYMMDDXX).
 $plugin->requires = 2015050500; // Requires this Moodle version.
 $plugin->component = 'logstore_splunk'; // Full name of the plugin (used for diagnostics).
 $plugin->maturity = MATURITY_STABLE;
-$plugin->release = 'v2.1.0 (Build: 2025100601)';
+$plugin->release = 'v2.2.0 (Build: 2025100602)';

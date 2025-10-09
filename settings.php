@@ -40,24 +40,6 @@ if ($hassiteconfig) {
     ));
 
     $settings->add(new admin_setting_configtext(
-        'logstore_splunk/port',
-        new lang_string('port', 'logstore_splunk'),
-        '', '8089', PARAM_INT
-    ));
-
-    $settings->add(new admin_setting_configtext(
-        'logstore_splunk/username',
-        new lang_string('username'),
-        '', 'admin', PARAM_ALPHANUMEXT
-    ));
-
-    $settings->add(new admin_setting_configpasswordunmask(
-        'logstore_splunk/password',
-        new lang_string('password'),
-        '', '', PARAM_ALPHANUMEXT
-    ));
-
-    $settings->add(new admin_setting_configtext(
         'logstore_splunk/indexname',
         new lang_string('indexname', 'logstore_splunk'),
         '', 'moodle', PARAM_ALPHANUMEXT
@@ -89,17 +71,6 @@ if ($hassiteconfig) {
             'realtime' => new lang_string('realtime', 'logstore_splunk'),
             'background' => new lang_string('background', 'logstore_splunk')
         )));
-
-    $settings->add(new admin_setting_configselect(
-        'logstore_splunk/transport',
-        new lang_string('transport', 'logstore_splunk'),
-        new lang_string('transport_desc', 'logstore_splunk'),
-        'receiver',
-        array(
-            'receiver' => new lang_string('transport_receiver', 'logstore_splunk'),
-            'hec' => new lang_string('transport_hec', 'logstore_splunk')
-        )
-    ));
 
     $settings->add(new admin_setting_configtext(
         'logstore_splunk/hecport',

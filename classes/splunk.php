@@ -23,17 +23,13 @@ defined('MOODLE_INTERNAL') || die();
  */
 class splunk
 {
-    const TRANSPORT_RECEIVER = 'receiver';
-    const TRANSPORT_HEC = 'hec';
-
     private static $instance;
     private static $cachedfilters;
 
-    private $service;
     private $config;
     private $buffer = array();
     private $ready;
-    private $transport = self::TRANSPORT_RECEIVER;
+    private $hecendpointurl;
 
     /**
      * Constructor.
@@ -52,17 +48,34 @@ class splunk
      */
     private function setup() {
         $this->config = get_config('logstore_splunk');
-        if (!isset($this->config->servername) || $this->config->servername === '') {
+        if (empty($this->config->servername) || empty($this->config->hectoken)) {
             return false;
         }
 
-        $this->transport = $this->detect_transport();
-
-        if ($this->transport === self::TRANSPORT_HEC) {
-            return $this->setup_hec();
+        if (empty($this->config->hecport)) {
+            $this->config->hecport = 8088;
         }
 
-        return $this->setup_receiver();
+        if (!isset($this->config->hecuseshttps)) {
+            $this->config->hecuseshttps = 1;
+        }
+
+        if (empty($this->config->hecendpoint)) {
+            $this->config->hecendpoint = '/services/collector/event';
+        }
+
+        $endpoint = trim((string)$this->config->hecendpoint);
+        if ($endpoint === '') {
+            $endpoint = '/services/collector/event';
+        }
+        if ($endpoint[0] !== '/') {
+            $endpoint = '/' . $endpoint;
+        }
+
+        $scheme = !empty($this->config->hecuseshttps) ? 'https://' : 'http://';
+        $this->hecendpointurl = $scheme . $this->config->servername . ':' . $this->config->hecport . $endpoint;
+
+        return true;
     }
 
     /**
@@ -165,12 +178,7 @@ class splunk
             return;
         }
 
-        if ($this->transport === self::TRANSPORT_HEC) {
-            $this->flush_hec();
-            return;
-        }
-
-        $this->flush_receiver();
+        $this->flush_hec();
     }
 
     /**
@@ -210,85 +218,6 @@ class splunk
         $eventname = ltrim($eventname, '\\');
 
         return in_array($eventname, self::$cachedfilters, true);
-    }
-
-    /**
-     * Determine configured transport.
-     *
-     * @return string
-     */
-    private function detect_transport() {
-        if (!isset($this->config->transport) || $this->config->transport === '') {
-            return self::TRANSPORT_RECEIVER;
-        }
-
-        $transport = $this->config->transport;
-        if ($transport !== self::TRANSPORT_HEC) {
-            return self::TRANSPORT_RECEIVER;
-        }
-
-        return $transport;
-    }
-
-    /**
-     * Setup the classic receiver transport.
-     *
-     * @return bool
-     */
-    private function setup_receiver() {
-        require_once(dirname(__FILE__) . '/../lib/splunk/Splunk.php');
-
-        $this->service = new \Splunk_Service(array(
-            'host' => $this->config->servername,
-            'port' => $this->config->port,
-            'username' => $this->config->username,
-            'password' => $this->config->password
-        ));
-
-        // Login to Splunk.
-        $this->service->login();
-
-        return true;
-    }
-
-    /**
-     * Setup the HTTP Event Collector transport.
-     *
-     * @return bool
-     */
-    private function setup_hec() {
-        if (empty($this->config->hectoken)) {
-            return false;
-        }
-
-        if (empty($this->config->hecport)) {
-            $this->config->hecport = 8088;
-        }
-
-        if (!isset($this->config->hecuseshttps)) {
-            $this->config->hecuseshttps = 1;
-        }
-
-        if (empty($this->config->hecendpoint)) {
-            $this->config->hecendpoint = '/services/collector/event';
-        }
-
-        return true;
-    }
-
-    /**
-     * Flush buffer via the Splunk receiver API.
-     */
-    private function flush_receiver() {
-        $reciever = $this->service->getReceiver();
-        $reciever->submit(implode("\n", $this->buffer), array(
-            'host' => $this->config->hostname,
-            'index' => $this->config->indexname,
-            'source' => $this->config->source,
-            'sourcetype' => 'json'
-        ));
-
-        $this->buffer = array();
     }
 
     /**
@@ -335,16 +264,7 @@ class splunk
             $records[] = json_encode($payload);
         }
 
-        $endpoint = trim((string)$this->config->hecendpoint);
-        if ($endpoint === '') {
-            $endpoint = '/services/collector/event';
-        }
-        if ($endpoint[0] !== '/') {
-            $endpoint = '/' . $endpoint;
-        }
-
-        $scheme = !empty($this->config->hecuseshttps) ? 'https://' : 'http://';
-        $url = $scheme . $this->config->servername . ':' . $this->config->hecport . $endpoint;
+        $url = $this->hecendpointurl;
 
         $payload = implode("\n", $records);
         if (debugging()) {
